@@ -1,0 +1,73 @@
+# Nx Tensor Create
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.6"}
+])
+```
+
+## Nx.tensor/2
+
+```elixir
+a = Nx.tensor(1, type: :bf16)
+b = Nx.tensor([-1, 1], type: :s8, names: [:x])
+c = Nx.tensor([[1, 2], [2, 3]], names: [:x, :y])
+
+d =
+  Nx.tensor(
+    [
+      [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ],
+      [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ],
+      [
+        [-1, -2, -3],
+        [-4, -5, -6],
+        [-7, -8, -9]
+      ]
+    ],
+    names: [:x, :y, :z]
+  )
+```
+
+## Nx.iota/2
+
+```elixir
+e = Nx.iota({3, 3, 3}, type: :bf16, names: [:a, :b, :c], axis: :a)
+```
+
+## Nx.eye/2
+
+```elixir
+f = Nx.eye(3, type: :f32)
+```
+
+## Nx.Random.random_uniform/2
+
+```elixir
+key = Nx.Random.key(-7)
+```
+
+```elixir
+{g, new_key} = Nx.Random.normal(key, shape: {3, 3})
+```
+
+## Sigils
+
+```elixir
+import Nx, only: :sigils
+
+h = ~V[1 2 3]f32
+
+i = ~M'''
+  1 2 3
+  4 5 6
+  7 8 9
+'''u8
+```
