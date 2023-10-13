@@ -1,4 +1,4 @@
-# Chapter Six
+# Chapter Six dot Two
 
 ```elixir
 Mix.install([
@@ -9,60 +9,6 @@ Mix.install([
   {:kino, "~> 0.11"},
   {:table_rex, "~> 3.1"}
 ])
-```
-
-## What is a Neural Network?
-
-```elixir
-defmodule NeuralNetwork do
-  import Nx.Defn
-
-  defn dense(input, weight, bias) do
-    # this is a single node layer.
-    input
-    |> Nx.dot(weight)
-    |> Nx.add(bias)
-  end
-
-  defn activation(input) do
-    Nx.sigmoid(input)
-  end
-
-  defn hidden(input, weight, bias) do
-    # a hidden layer is a fully connected a.k.a.
-    # feed-foreward a.k.a. dense layer. fully 
-    # connected means that every input value has
-    # an associated weight at every subsequent
-    # target node.
-    input
-    |> dense(weight, bias)
-    |> activation()
-  end
-
-  defn output(input, weight, bias) do
-    input
-    |> dense(weight, bias)
-    |> activation()
-  end
-
-  defn predict(input, w1, b1, w2, b2) do
-    # send the input to the hidden layer
-    input
-    |> hidden(w1, b1)
-    |> output(w2, b2)
-  end
-end
-```
-
-```elixir
-key = Nx.Random.key(42)
-{w1, new_key} = Nx.Random.uniform(key)
-{b1, new_key} = Nx.Random.uniform(new_key)
-{w2, new_key} = Nx.Random.uniform(new_key)
-{b2, new_key} = Nx.Random.uniform(new_key)
-
-Nx.Random.uniform_split(new_key, -10, 10, shape: {})
-|> NeuralNetwork.predict(w1, b1, w2, b2)
 ```
 
 ## Axon
