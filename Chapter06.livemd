@@ -1,0 +1,207 @@
+# Chapter Six
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.6"},
+  {:axon, "~> 0.6"},
+  {:exla, "~> 0.6"},
+  {:scidata, "~> 0.1"},
+  {:kino, "~> 0.11"},
+  {:table_rex, "~> 3.1"}
+])
+```
+
+## What is a Neural Network?
+
+```elixir
+defmodule NeuralNetwork do
+  import Nx.Defn
+
+  defn dense(input, weight, bias) do
+    # this is a single node layer.
+    input
+    |> Nx.dot(weight)
+    |> Nx.add(bias)
+  end
+
+  defn activation(input) do
+    Nx.sigmoid(input)
+  end
+
+  defn hidden(input, weight, bias) do
+    # a hidden layer is a fully connected a.k.a.
+    # feed-foreward a.k.a. dense layer. fully 
+    # connected means that every input value has
+    # an associated weight at every subsequent
+    # target node.
+    input
+    |> dense(weight, bias)
+    |> activation()
+  end
+
+  defn output(input, weight, bias) do
+    input
+    |> dense(weight, bias)
+    |> activation()
+  end
+
+  defn predict(input, w1, b1, w2, b2) do
+    # send the input to the hidden layer
+    input
+    |> hidden(w1, b1)
+    |> output(w2, b2)
+  end
+end
+```
+
+```elixir
+key = Nx.Random.key(42)
+{w1, new_key} = Nx.Random.uniform(key)
+{b1, new_key} = Nx.Random.uniform(new_key)
+{w2, new_key} = Nx.Random.uniform(new_key)
+{b2, new_key} = Nx.Random.uniform(new_key)
+
+Nx.Random.uniform_split(new_key, -10, 10, shape: {})
+|> NeuralNetwork.predict(w1, b1, w2, b2)
+```
+
+## Axon
+
+```elixir
+Nx.default_backend(EXLA.Backend)
+```
+
+```elixir
+{images, labels} = Scidata.MNIST.download()
+
+:ok
+```
+
+```elixir
+{image_data, image_type, image_shape} = images
+{label_data, label_type, label_shape} = labels
+
+IO.inspect(image_type, label: "image_type")
+IO.inspect(image_shape, label: "image_shape")
+IO.inspect(label_type, label: "lable_type")
+IO.inspect(label_shape, label: "label_shape")
+
+images =
+  image_data
+  |> Nx.from_binary(image_type)
+  |> Nx.divide(255)
+  |> Nx.reshape({60_000, :auto})
+
+IO.inspect(images[0], label: "example image")
+
+labels =
+  label_data
+  |> Nx.from_binary(label_type)
+  |> Nx.reshape(label_shape)
+  |> Nx.new_axis(-1)
+  |> Nx.equal(Nx.iota({1, 10}))
+
+IO.inspect(labels[0], label: "example label")
+
+:ok
+```
+
+```elixir
+train_range = 0..49_999//1
+train_images = images[train_range]
+train_labels = labels[train_range]
+
+test_range = 50_000..-1//1
+test_images = images[test_range]
+test_labels = labels[test_range]
+
+:ok
+```
+
+```elixir
+batch_size = 64
+
+train_data =
+  train_images
+  |> Nx.to_batched(batch_size)
+  |> Stream.zip(Nx.to_batched(train_labels, batch_size))
+
+test_data =
+  test_images
+  |> Nx.to_batched(batch_size)
+  |> Stream.zip(Nx.to_batched(test_labels, batch_size))
+
+:ok
+```
+
+## Model
+
+```elixir
+model =
+  Axon.input("images", shape: {nil, 784})
+  # |> Axon.dense(128, activation: :relu)
+  |> Axon.dense(64, activation: :relu)
+  |> Axon.dense(64, activation: :relu)
+  # |> Axon.dense(32, activation: :relu)
+  |> Axon.dense(10, activation: :softmax)
+```
+
+```elixir
+template = Nx.template({1, 784}, :f32)
+```
+
+```elixir
+Axon.Display.as_graph(model, template)
+```
+
+```elixir
+Axon.Display.as_table(model, template) |> IO.puts()
+```
+
+```elixir
+IO.inspect(model, structs: false)
+
+:ok
+```
+
+## Train
+
+```elixir
+trained_model_state =
+  model
+  |> Axon.Loop.trainer(:categorical_cross_entropy, :sgd)
+  |> Axon.Loop.metric(:accuracy)
+  |> Axon.Loop.run(train_data, %{}, epochs: 10, compiler: EXLA)
+```
+
+```elixir
+model
+|> Axon.Loop.evaluator()
+|> Axon.Loop.metric(:accuracy)
+|> Axon.Loop.run(test_data, trained_model_state, compiler: EXLA)
+```
+
+## Execute Model
+
+```elixir
+{_, predict_fn} = Axon.build(model, compiler: EXLA)
+
+:ok
+```
+
+```elixir
+{test_batch, _} = Enum.at(test_data, Enum.random(0..32))
+test_image = test_batch[Enum.random(0..32)]
+
+test_image
+|> Nx.reshape({28, 28})
+|> Nx.to_heatmap()
+```
+
+```elixir
+number =
+  test_image
+  |> Nx.new_axis(0)
+  |> then(&predict_fn.(trained_model_state, &1))
+  |> Nx.argmax()
+```
