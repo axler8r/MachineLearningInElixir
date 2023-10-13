@@ -1,0 +1,128 @@
+# Chapter Four
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.6"}
+])
+```
+
+## Training Data
+
+```elixir
+# the truth funciton computes the dot product (m×n·n×o) of two tensors
+# this is the 'model' of the data… that is, the formula used to create the data,
+# that is (α, β) ↦ γ where α ∈ ℝₜ(m×n), β ∈ ℝₜ(n×o) and γ ∈ ℝₜ(0) ∴ α·β ↦ γ
+true_function = fn parameters, xs -> Nx.dot(xs, parameters) end
+
+# create a random 32×1 tensor
+{true_parameters, true_key} = Nx.Random.uniform(Nx.Random.key(42), shape: {32, 1})
+IO.inspect(Nx.shape(true_parameters), label: :true_parameters)
+
+# create training input
+{train_xs, train_key} = Nx.Random.uniform(true_key, shape: {10_000, 32})
+IO.inspect(Nx.shape(train_xs), label: :train_xs)
+# create training labels
+train_ys = true_function.(true_parameters, train_xs)
+IO.inspect(Nx.shape(train_ys), label: :train_ys)
+train_data = Enum.zip(Nx.to_batched(train_xs, 1), Nx.to_batched(train_ys, 1))
+
+# create test input
+{test_xs, test_key} = Nx.Random.uniform(train_key, shape: {10_000, 32})
+IO.inspect(Nx.shape(test_xs), label: :test_xs)
+# create test labels
+test_ys = true_function.(true_parameters, test_xs)
+IO.inspect(Nx.shape(test_ys), label: :test_ys)
+test_data = Enum.zip(Nx.to_batched(test_xs, 1), Nx.to_batched(test_ys, 1))
+
+:ok
+```
+
+## Stochastic Gradient Descent
+
+```elixir
+defmodule SGD do
+  import Nx.Defn
+
+  defn(initialize_random_parameters(key), do: Nx.Random.uniform(key, shape: {32, 1}))
+
+  defn model(parameters, inputs) do
+    labels = Nx.dot(inputs, parameters)
+    print_value(parameters, label: :model_parameters)
+    print_value(labels, label: :model_labels)
+    labels
+  end
+
+  defn mean_squared_error(y, y_hat) do
+    y
+    |> Nx.subtract(y_hat)
+    |> Nx.pow(2)
+    |> Nx.mean(axes: [-1])
+  end
+
+  defn loss(actual, predicted) do
+    loss = mean_squared_error(actual, predicted)
+    loss
+  end
+
+  defn objective(parameters, inputs, actual_labels) do
+    predicted_labels = model(parameters, inputs)
+    loss(actual_labels, predicted_labels)
+  end
+
+  defn step(parameters, inputs, labels) do
+    {loss, gradient_parameters} =
+      value_and_grad(
+        parameters,
+        fn parameters -> objective(parameters, inputs, labels) end
+      )
+
+    new_parameters = parameters - 1.0e-2 * gradient_parameters
+    {loss, new_parameters}
+  end
+
+  def train(data, iterations, key) do
+    {parameters, _} = initialize_random_parameters(key)
+    IO.inspect(parameters, label: :model_parameters)
+
+    loss = Nx.tensor(0.0)
+
+    {_, trained_parameters} =
+      for _i <- 1..iterations, reduce: {loss, parameters} do
+        {loss, parameters} ->
+          for {{x, y}, j} <- Enum.with_index(data), reduce: {loss, parameters} do
+            {loss, parameters} ->
+              {batch_loss, new_parameters} = step(parameters, x, y)
+              average_loss = Nx.add(Nx.mean(batch_loss), loss) |> Nx.divide(j + 1)
+              # IO.write("\rEpoch: #{i}\tLoss: #{Nx.to_number(average_loss)}\n")
+              {average_loss, new_parameters}
+          end
+      end
+
+    IO.write("trained_parameters ")
+    trained_parameters
+  end
+
+  def evaluate(trained_parameters, test_data) do
+    test_data
+    |> Enum.map(fn {x, y} ->
+      prediction = model(trained_parameters, x)
+      loss(y, prediction)
+    end)
+    |> Enum.reduce(0, &Nx.add/2)
+  end
+end
+```
+
+```elixir
+key = Nx.Random.key(0)
+trained_parameters = SGD.train(train_data, 1, key)
+```
+
+```elixir
+SGD.evaluate(trained_parameters, test_data)
+```
+
+```elixir
+{random_parameters, _} = Nx.Random.uniform(Nx.Random.key(123), shape: {32, 1})
+SGD.evaluate(random_parameters, test_data)
+```

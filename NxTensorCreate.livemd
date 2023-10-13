@@ -1,0 +1,114 @@
+# Nx Tensor Create
+
+```elixir
+Mix.install([
+  {:nx, "~> 0.6"}
+])
+```
+
+## Nx.tensor/2
+
+```elixir
+a = Nx.tensor(1, type: :bf16)
+b = Nx.tensor([-1, 1], type: :s8, names: [:x])
+c = Nx.tensor([[1, 2], [2, 3]], names: [:x, :y])
+
+d =
+  Nx.tensor(
+    [
+      [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ],
+      [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ],
+      [
+        [-1, -2, -3],
+        [-4, -5, -6],
+        [-7, -8, -9]
+      ]
+    ],
+    names: [:x, :y, :z]
+  )
+
+IO.inspect(a, label: ~c"a")
+IO.inspect(b, label: ~c"b")
+IO.inspect(c, label: ~c"c")
+IO.inspect(d, label: ~c"d")
+
+:ok
+```
+
+## Nx.iota/2
+
+```elixir
+e = Nx.iota({3, 3, 3}, type: :s8, names: [:x, :y, :z])
+e1 = Nx.iota({3, 3, 3}, type: :s8, names: [:x, :y, :z], axis: :x)
+e2 = Nx.iota({3, 3, 3}, type: :s8, names: [:x, :y, :z], axis: :y)
+e3 = Nx.iota({3, 3, 3}, type: :s8, names: [:x, :y, :z], axis: :z)
+
+IO.inspect(e, label: ~c"e")
+IO.inspect(e1, label: "e1")
+IO.inspect(e2, label: "e2")
+IO.inspect(e3, label: "e3")
+
+:ok
+```
+
+## Nx.eye/2
+
+```elixir
+f = Nx.eye(3, type: :bf16)
+
+IO.inspect(f, label: ~c"f")
+
+:ok
+```
+
+## Nx.Random.normal/2 and Nx.Random.uniform/2
+
+```elixir
+key = Nx.Random.key(-7)
+{g, new_key} = Nx.Random.normal(key, shape: {3, 3, 3})
+{h, new_key} = Nx.Random.uniform(new_key, shape: {3, 3, 3})
+
+IO.inspect(g, label: ~c"g")
+IO.inspect(h, label: ~c"h")
+
+:ok
+```
+
+## Sigils
+
+```elixir
+import Nx, only: :sigils
+
+i = ~V[1 2 3]f32
+
+j = ~M'''
+  1 2 3
+  4 5 6
+  7 8 9
+'''u8
+
+IO.inspect(i, label: ~c"i")
+IO.inspect(j, label: ~c"j")
+
+:ok
+```
+
+## Nx.reshape/2
+
+```elixir
+{k, new_key} = Nx.Random.gumbel(new_key, shape: {1, 9})
+l = Nx.reshape(k, {3, 3})
+
+IO.inspect(k, label: ~c"k")
+IO.inspect(l, label: ~c"l")
+
+:ok
+```
